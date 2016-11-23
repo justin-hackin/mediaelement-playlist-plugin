@@ -2,11 +2,11 @@
 
 (function($) {
     $.extend(mejs.MepDefaults, {
-        loopText: "Repeat On/Off",
-        shuffleText: "Shuffle On/Off",
-        nextText: "Next Track",
-        prevText: "Previous Track",
-        playlistText: "Show/Hide Playlist"
+        loopText: mejs.i18n.t("Repeat On/Off"),
+        shuffleText: mejs.i18n.t("Shuffle On/Off"),
+        nextText: mejs.i18n.t("Next Track"),
+        prevText: mejs.i18n.t("Previous Track"),
+        playlistText: mejs.i18n.t("Show/Hide Playlist")
     });
     $.extend(MediaElementPlayer.prototype, {
         buildloop: function(player, controls, layers, media) {
