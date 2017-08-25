@@ -6,6 +6,17 @@ module.exports = function (grunt) {
 	// grunt config
 	grunt.initConfig({
 		pkg: grunt.file.readJSON('package.json'),
+		babel: {
+			options: {
+				sourceMap: true,
+				presets: ['env']
+			},
+			build: {
+				files: {
+					'_build/mediaelement-playlist-plugin.min.js': 'js/mediaelement-playlist-plugin.js'
+				}
+			}
+		},
 		uglify: {
 			dev: {
 				options: {
@@ -137,7 +148,7 @@ module.exports = function (grunt) {
 							match: /_demo\/no-video-playlist.png/g,
 							replacement: './no-video-playlist.png'
 						}
-						
+
 					]
 				},
 				files: [
@@ -197,18 +208,21 @@ module.exports = function (grunt) {
 
 	// load modules
 	grunt.loadNpmTasks('grunt-contrib-watch');
-	grunt.loadNpmTasks('grunt-contrib-sass');
+	grunt.loadNpmTasks('grunt-sass');
 	grunt.loadNpmTasks('grunt-autoprefixer');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-copy');
 	grunt.loadNpmTasks('grunt-replace');
+	grunt.loadNpmTasks('grunt-babel');
 
 	// all task(s)
 	grunt.registerTask('js:dev',    ['uglify:dev']);
 	grunt.registerTask('js:build',  ['uglify:build']);
+	grunt.registerTask('js:dev',    ['babel:build']);
+	grunt.registerTask('js:build',  ['babel:build']);
 	grunt.registerTask('css:dev',   ['sass:dev', 'autoprefixer:dev']);
 	grunt.registerTask('css:build', ['sass:build', 'autoprefixer:build']);
-	
+
 	grunt.registerTask('build:dev',  ['js:dev',   'css:dev',   'copy:dev',   'replace:dev']);
 	grunt.registerTask('build',      ['js:build', 'css:build', 'copy:build', 'replace:build']);
 	// builds the "root" demo.html using "_build" assets
