@@ -1,425 +1,431 @@
-/* globals mejs, MediaElementPlayer */
-'use strict';
+  /* globals mejs, MediaElementPlayer */
+(function () {
+  function createElement (tagName, props) {
+    const el = document.createElement(tagName)
+    setNodeAttributes(el, props)
+    return el
+  }
 
-/**
- * @file MediaElement Playlist Feature (plugin).
- * @author Rocco Georgi <rocco@pavingways.com>
- * Twitter handle: geeroc
- * @author Original author: Andrew Berezovsky <andrew.berezovsky@gmail.com>
- * Twitter handle: duozersk
- * @author Original author: Junaid Qadir Baloch <shekhanzai.baloch@gmail.com>
- * Twitter handle: jeykeu
- * Dual licensed under the MIT or GPL Version 2 licenses.
- */
+  function setNodeAttributes (target, props) {
+    if (target.forEach) {
+      return target.forEach(node => {
+        setNodeAttributes(node, props)
+      })
+    }
+    for (let key in props) {
+      if (key.startsWith('style.')){
+        key = key.split('.')[0]
+        target.style[key] = props[key]
+      }else{
+        target.setAttribute(key, props[key])
+      }
+    }
+  }
 
-(function ($) {
-	$.extend(mejs.MepDefaults, {
-		loopText: mejs.i18n.t('Repeat On/Off'),
-		shuffleText: mejs.i18n.t('Shuffle On/Off'),
-		nextText: mejs.i18n.t('Next Track'),
-		prevText: mejs.i18n.t('Previous Track'),
-		playlistText: mejs.i18n.t('Show/Hide Playlist')
-	});
+  const toggleDisplay = (el, shown) => {
+    const display = el.getAttribute('display') || 'block'
+    const isShown = shown || display === 'none'
+    if (isShown) {
+      el.setAttribute('data-toggle-prev-display', display)
+      el.style.display = 'none'
+    } else {
+      el.style.display = el.getAttribute('data-toggle-prev-display') || 'block'
+    }
+  }
 
-	$.extend(MediaElementPlayer.prototype, {
-		// LOOP TOGGLE
-		buildloop: function (player, controls, layers, media) {
-			var t = this;
+  const toggleFade = (el, isShown) => {
+    if (window.GSAPTween) { return window.GSAPTween.to(el, {opacity: isShown ? 1 : 0}) }
+    toggleDisplay(el, isShown)
+  }
 
-			var loop = $('<div class="mejs-button mejs-loop-button ' + ((player.options.loop) ? 'mejs-loop-on' : 'mejs-loop-off') + '">' +
-				'<button type="button" aria-controls="' + player.id + '" title="' + player.options.loopText + '"></button>' +
-				'</div>')
-				// append it to the toolbar
-				.appendTo(controls)
-				// add a click toggle event
-				.click(function () {
-					player.options.loop = !player.options.loop;
-					$(media).trigger('mep-looptoggle', [player.options.loop]);
-					if (player.options.loop) {
-						loop.removeClass('mejs-loop-off').addClass('mejs-loop-on');
-						//media.setAttribute('loop', 'loop');
-					} else {
-						loop.removeClass('mejs-loop-on').addClass('mejs-loop-off');
-						//media.removeAttribute('loop');
-					}
-				});
+  Object.assign(mejs.MepDefaults, {
+    loopText: mejs.i18n.t('Repeat On/Off'),
+    shuffleText: mejs.i18n.t('Shuffle On/Off'),
+    nextText: mejs.i18n.t('Next Track'),
+    prevText: mejs.i18n.t('Previous Track'),
+    playlistText: mejs.i18n.t('Show/Hide Playlist')
+  })
 
-			t.loopToggle = t.controls.find('.mejs-loop-button');
-		},
-		loopToggleClick: function () {
-			var t = this;
-			t.loopToggle.trigger('click');
-		},
-		// SHUFFLE TOGGLE
-		buildshuffle: function (player, controls, layers, media) {
-			var t = this;
+  Object.assign(MediaElementPlayer.prototype, {
+    // LOOP TOGGLE
+    buildloop (player, controls, layers, media) {
+      const t = this
+      const loop = createElement('div', {
+        class: `mejs__button mejs__loop ${player.options.loop ? 'mejs__loop-on' : 'mejs__loop-off'}`
+      })
+      loop.appendChild(createElement('button', {
+        type: 'button',
+        'aria-controls': player.id,
+        title: player.options.loopText
+      }))
+      controls.appendChild(loop)
+      loop.addEventListener('click', () => {
+        player.options.loop = !player.options.loop
+        media.dispatchEvent(new Event('mep-looptoggle', [player.options.loop]))
+        loop.classList.remove(player.options.loop ? 'mejs__loop-off' : 'mejs__loop-on')
+        loop.classList.add(player.options.loop ? 'mejs__loop-on' : 'mejs__loop-off')
+      })
 
-			var shuffle = $('<div class="mejs-button mejs-shuffle-button ' + ((player.options.shuffle) ? 'mejs-shuffle-on' : 'mejs-shuffle-off') + '">' +
-				'<button type="button" aria-controls="' + player.id + '" title="' + player.options.shuffleText + '"></button>' +
-				'</div>')
-				// append it to the toolbar
-				.appendTo(controls)
-				// add a click toggle event
-				.click(function () {
-					player.options.shuffle = !player.options.shuffle;
-					$(media).trigger('mep-shuffletoggle', [player.options.shuffle]);
-					if (player.options.shuffle) {
-						shuffle.removeClass('mejs-shuffle-off').addClass('mejs-shuffle-on');
-					} else {
-						shuffle.removeClass('mejs-shuffle-on').addClass('mejs-shuffle-off');
-					}
-				});
+      t.loopToggle = loop
+    },
+    loopToggleClick () {
+      const t = this
+      t.loopToggle.dispatchEvent(new Event('click'))
+    },
+    // SHUFFLE TOGGLE
+    buildshuffle (player, controls, layers, media) {
+      const t = this
+      const shuffle = createElement('div', {
+        class: `mejs__button mejs__shuffle-button ${(player.options.shuffle) ? 'mejs__shuffle-on' : 'mejs__shuffle-off'}`
+      })
+      const shuffleButton = createElement('button', {
+        type: 'button',
+        'aria-controls': player.id,
+        title: player.options.shuffleText
+      })
+      shuffle.appendChild(shuffleButton)
+      controls.appendChild(shuffle)
+      shuffle.addEventListener('click', () => {
+        player.options.shuffle = !player.options.shuffle
+        media.dispatchEvent(new Event('mep-looptoggle', [player.options.loop]))
+        shuffle.classList.remove(player.options.shuffle ? 'mejs__shuffle-off' : 'mejs__shuffle-on')
+        shuffle.classList.add(player.options.shuffle ? 'mejs__shuffle-on' : 'mejs__shuffle-off')
+      })
 
-			t.shuffleToggle = t.controls.find('.mejs-shuffle-button');
-		},
-		shuffleToggleClick: function () {
-			var t = this;
-			t.shuffleToggle.trigger('click');
-		},
-		// PREVIOUS TRACK BUTTON
-		buildprevtrack: function (player, controls, layers, media) {
-			var t = this;
+      t.shuffleToggle = shuffle
+    },
+    shuffleToggleClick () {
+      const t = this
+      t.shuffleToggle.dispatchEvent(new Event('click'))
+    },
+    // PREVIOUS TRACK BUTTON
+    buildprevtrack (player, controls, layers, media) {
+      const t = this
+      const prevtrack = createElement('div', {
+        class: 'mejs__button mejs__prevtrack-button mejs__prevtrack'
+      })
+      const button = createElement('button', {
+        type: 'button',
+        'aria-controls': player.id,
+        title: player.options.prevText
+      })
+      prevtrack.appendChild(button)
+      controls.appendChild(prevtrack)
+      prevtrack.addEventListener('click', () => {
+        media.dispatchEvent(new Event('mep-playprevtrack'))
+        player.playPrevTrack()
+      })
 
-			var prevTrack = $('<div class="mejs-button mejs-prevtrack-button mejs-prevtrack">' +
-				'<button type="button" aria-controls="' + player.id + '" title="' + player.options.prevText + '"></button>' +
-				'</div>');
+      t.prevTrack = prevtrack
+    },
+    prevTrackClick () {
+      const t = this
+      t.prevTrack.dispatchEvent(new Event('click'))
+    },
 
-			prevTrack.appendTo(controls)
-				.click(function () {
-					$(media).trigger('mep-playprevtrack');
-					player.playPrevTrack();
-				});
+    // NEXT TRACK BUTTON
+    buildnexttrack (player, controls, layers, media) {
+      const t = this
+      const nexttrack = createElement('div', {
+        class: 'mejs__button mejs__nexttrack-button mejs__nexttrack'
+      })
+      const button = createElement('button', {
+        type: 'button',
+        'aria-controls': player.id,
+        title: player.options.nextText
+      })
+      nexttrack.appendChild(button)
+      controls.appendChild(nexttrack)
+      nexttrack.addEventListener('click', () => {
+        media.dispatchEvent(new Event('mep-playnexttrack'))
+        player.playNextTrack()
+      })
 
-			t.prevTrack = t.controls.find('.mejs-prevtrack-button');
-		},
-		prevTrackClick: function () {
-			var t = this;
-			t.prevTrack.trigger('click');
-		},
+      t.nextTrack = nexttrack
+    },
+    nextTrackClick () {
+      const t = this
+      t.nextTrack.dispatchEvent(new Event('click'))
+    },
 
-		// NEXT TRACK BUTTON
-		buildnexttrack: function (player, controls, layers, media) {
-			var t = this;
+    // PLAYLIST TOGGLE
+    buildplaylist (player, controls, layers, media) {
+      const t = this
+      const playlistToggle = createElement('div', {
+        class: `mejs__button mejs__playlist-button ${(player.options.playlist) ? 'mejs__hide-playlist' : 'mejs__show-playlist'}`
+      })
+      const button = createElement('button', {
+        type: 'button',
+        'aria-controls': player.id,
+        title: player.options.playlistText
+      })
+      playlistToggle.appendChild(button)
+      controls.appendChild(playlistToggle)
+      playlistToggle.addEventListener('click', () => {
+        t.togglePlaylistDisplay(player, layers, media)
+      })
 
-			var nextTrack = $('<div class="mejs-button mejs-nexttrack-button mejs-nexttrack">' +
-				'<button type="button" aria-controls="' + player.id + '" title="' + player.options.nextText + '"></button>' +
-				'</div>');
+      t.playlistToggle = playlistToggle
+    },
+    playlistToggleClick () {
+      const t = this
+      t.playlistToggle.dispatchEvent(new Event('click'))
+    },
+    // PLAYLIST WINDOW
+    buildplaylistfeature (player, controls, layers, media) {
+      const t = this
+      const playlist = createElement('div', { class: 'mejs__playlist mejs__layer' })
+      const listUl = createElement('ul', { class: 'mejs' })
+      playlist.appendChild(listUl)
+      layers.appendChild(playlist)
+      // activate playlist display when data-showplaylist is set
+      if (media.getAttribute('data-showplaylist')) {
+        player.options.playlist = true
+        // hide play overlay button
+      }
 
-			nextTrack.appendTo(controls)
-				.click(function () {
-					$(media).trigger('mep-playnexttrack');
-					player.playNextTrack();
-				});
+      if (!player.options.playlist) {
+        toggleDisplay(playlist, false)
+      }
 
-			t.nextTrack = t.controls.find('.mejs-nexttrack-button');
-		},
-		nextTrackClick: function () {
-			var t = this;
-			t.nextTrack.trigger('click');
-		},
+      const getTrackName = trackUrl => {
+        const trackUrlParts = trackUrl.split('/')
+        if (trackUrlParts.length > 0) {
+          return decodeURIComponent(trackUrlParts[trackUrlParts.length - 1])
+        } else {
+          return ''
+        }
+      }
 
-		// PLAYLIST TOGGLE
-		buildplaylist: function (player, controls, layers, media) {
-			var t = this;
+      // calculate tracks and build playlist
+      const tracks = []
+      let sourceIsPlayable
+      let foundMatchingType = ''
+      // $(media).children('source').each(function (index, element) { // doesn't work in Opera 12.12
+      media.querySelectorAll('source')
+      .forEach(function (el) {
+      // $('#' + player.id).find('.mejs__mediaelement source').each(function () {
+        sourceIsPlayable = el.parentNode.canPlayType(el.type)
+        if (!foundMatchingType && (sourceIsPlayable === 'maybe' || sourceIsPlayable === 'probably')) {
+          foundMatchingType = el.getAttribute('type')
+        }
+        if (!!foundMatchingType && el.getAttribute('type') === foundMatchingType) {
+          if (el.src.trim() !== '') {
+            const track = {}
+            track.source = el.src.trim()
+            const titleTrim = el.getAttribute('title').trim()
+            if (titleTrim !== '') {
+              track.name = titleTrim
+            } else {
+              track.name = getTrackName(track.source)
+            }
+            // add poster image URL from data-poster attribute
+            track.poster = el.getAttribute('data-poster')
+            tracks.push(track)
+          }
+        }
+      })
+      tracks.forEach(function(track){
+        const thisLi = createElement('li', {
+          'data-url': track.source,
+          'data-poster': track.poster,
+          title: track.name,
+          'style.background-image': player.media.classList.contains('mep-slider') ? `url("${track.poster})"` : 'inherit'
+        })
+        const trackSpan = createElement('span', {})
+        trackSpan.innerHTML = track.name
+        thisLi.appendChild(trackSpan)
+        listUl.appendChild(thisLi)
+      })
+      /* slider */
+      player.videoSliderTracks = tracks.length
 
-			// build playlist button
-			var playlistToggle = $('<div class="mejs-button mejs-playlist-button ' + ((player.options.playlist) ? 'mejs-hide-playlist' : 'mejs-show-playlist') + '">' +
-				'<button type="button" aria-controls="' + player.id + '" title="' + player.options.playlistText + '"></button>' +
-				'</div>');
+      // set the first track as current
+      const firstItem = listUl.children[0]
+      firstItem.classList.add('played')
+      firstItem.classList.add('current')
+      // set initial poster image - only for audio playlists
+      if (player.media.matches('audio')) {
+        player.changePoster(firstItem.getAttribute('data-poster'))
+      }
+      /* slider */
+      const prevVid = createElement('a', {class: 'mep-prev'})
+      const nextVid = createElement('a', {class: 'mep-prev'})
 
-			playlistToggle.appendTo(controls)
-				.click(function () {
-					// toggle playlist display
-					t.togglePlaylistDisplay(player, layers, media);
-				});
+      player.videoSliderIndex = 0
 
-			t.playlistToggle = t.controls.find('.mejs-playlist-button');
-		},
-		playlistToggleClick: function () {
-			var t = this;
-			t.playlistToggle.trigger('click');
-		},
-		// PLAYLIST WINDOW
-		buildplaylistfeature: function (player, controls, layers, media) {
+      playlist.appendChild(prevVid)
+      playlist.appendChild(nextVid)
+      // setNodeAttributes(
+      //   listUl.querySelectorAll('li'),
+      //   {'style.transform': 'translate3d(0, -20px, 0) scale3d(0.75, 0.75, 1)'}
+      // )
+      toggleDisplay(prevVid, false)
 
-			// add playlist view to layers
-			var t = this,
-				playlist = $('<div class="mejs-playlist mejs-layer">' +
-				'<ul class="mejs"></ul>' +
-				'</div>')
-				.appendTo(layers);
+      const previousNextHandler = () => {
+        let moveMe = true
 
-			// activate playlist display when data-showplaylist is set
-			if (!!$(media).data('showplaylist')) {
-				player.options.playlist = true;
-				// hide play overlay button
-				$('#' + player.id).find('.mejs-overlay-play').hide();
-			}
+        player.videoSliderIndex -= 1
+        if (player.videoSliderIndex < 0) {
+          player.videoSliderIndex = 0
+          moveMe = false
+        }
 
-			if(!player.options.playlist) {
-				playlist.hide();
-			}
+        toggleFade(nextVid, player.videoSliderIndex !== player.videoSliderTracks - 1)
+        toggleFade(prevVid, player.videoSliderIndex !== 0)
 
-			var getTrackName = function (trackUrl) {
-				var trackUrlParts = trackUrl.split('/');
-				if (trackUrlParts.length > 0) {
-					return decodeURIComponent(trackUrlParts[trackUrlParts.length - 1]);
-				} else {
-					return '';
-				}
-			};
+        if (moveMe === true) {
+          player.sliderWidth = parseInt(getComputedStyle(document.getElementById(player.id)).width)
+          setNodeAttributes(listUl.querySelectorAll('li'), {
+            transform: `translate3d(-${Math.ceil(player.sliderWidth * player.videoSliderIndex)}px, -20px, 0) scale3d(0.75, 0.75, 1))`
+          })
+        }
+      }
+      prevVid.addEventListener('click', previousNextHandler) // initially hide prevVid button
+      nextVid.addEventListener('click', previousNextHandler)
 
-			// calculate tracks and build playlist
-			var tracks = [],
-				sourceIsPlayable,
-				foundMatchingType = '';
-			//$(media).children('source').each(function (index, element) { // doesn't work in Opera 12.12
+      // play track from playlist when clicking it
+      layers.querySelectorAll('.mejs__playlist > ul li').forEach((el) => {
+        el.addEventListener('click', function () {
+          // pause current track or play other one
+          if (!this.classList.contains('current')) {
+            // clicked other track - play it
+            this.classList.add('played')
+            player.playTrack(this)
+          } else {
+            // clicked current track - play if paused and vice versa
+            if (!player.media.paused) {
+              // pause if playing
+              player.pause()
+            } else {
+              // play if paused
+              player.play()
+            }
+          }
+        })
+      })
 
-			$('#' + player.id).find('.mejs-mediaelement source').each(function () {
-				sourceIsPlayable = $(this).parent()[0].canPlayType(this.type);
-				if (!foundMatchingType && (sourceIsPlayable === 'maybe' || sourceIsPlayable === 'probably')) {
-					foundMatchingType = this.type;
-				}
-				if (!!foundMatchingType && this.type === foundMatchingType) {
-					if ($.trim(this.src) !== '') {
-						var track = {};
-						track.source = $.trim(this.src);
-						if ($.trim(this.title) !== '') {
-							track.name = $.trim(this.title);
-						} else {
-							track.name = getTrackName(track.source);
-						}
-						// add poster image URL from data-poster attribute
-						track.poster = $(this).data('poster');
-						tracks.push(track);
-					}
-				}
-			});
 
-			for (var track in tracks) {
-				var $thisLi = $('<li data-url="' + tracks[track].source + '" data-poster="' + tracks[track].poster + '" title="' + tracks[track].name + '"><span>' + tracks[track].name + '</span></li>');
-				layers.find('.mejs-playlist > ul').append($thisLi);
+      // when current track ends - play the next one
+      media.addEventListener('ended', () => {
+        player.playNextTrack()
+      }, false)
 
-				/* slider */
-				if ($(player.media).hasClass('mep-slider')) {
-					$thisLi.css({
-						'background-image': 'url("' + $thisLi.data('poster') + '")'
-					});
-				}
-			}
-			/* slider */
-			player.videoSliderTracks = tracks.length;
+      // set play and paused class to container
+      media.addEventListener('playing', () => {
+        player.container.classList.remove('mep-paused')
+        player.container.classList.add('mep-playing')
 
-			// set the first track as current
-			layers.find('li:first').addClass('current played');
-			// set initial poster image - only for audio playlists
-			if ($(player.media).is('audio')) {
-				player.changePoster(layers.find('li:first').data('poster'));
-			}
-			/* slider */
-			var $prevVid = $('<a class="mep-prev">'),
-				$nextVid = $('<a class="mep-next">');
+        // hide playlist for videos
+        if (media.matches('video')) {
+          t.togglePlaylistDisplay(player, layers, media, 'hide')
+        }
+      }, false)
 
-			player.videoSliderIndex = 0;
+      /* mediaelement.js hides poster on "play" for all player types - not so great for audio */
+      media.addEventListener('play', () => {
+        if (player.media.matches('audio')) {
+          layers.find('.mejs__poster').show()
+        }
+      }, false)
 
-			layers.find('.mejs-playlist').append($prevVid);
-			layers.find('.mejs-playlist').append($nextVid);
+      media.addEventListener('pause', () => {
+        player.container.classList.remove('mep-playing')
+        player.container.classList.add('mep-paused')
+      }, false)
+    },
+    playNextTrack () {
+      const t = this
+      let nxt
+      const tracks = t.layers.querySelectorAll('.mejs__playlist > ul > li')
+      const current = t.layers.querySelector('.mejs__playlist > ul > li.current')
+      let notplayed = [...tracks].filter(el => !el.classList.contains('played'))
 
-			// transform individual track display
-			$('#' + player.id + '.mejs-container.mep-slider').find('.mejs-playlist ul li').css({'transform': 'translate3d(0, -20px, 0) scale3d(0.75, 0.75, 1)'});
-
-			$prevVid.click(function () {
-				var moveMe = true;
-
-				player.videoSliderIndex -= 1;
-				if (player.videoSliderIndex < 0) {
-					player.videoSliderIndex = 0;
-					moveMe = false;
-				}
-
-				if (player.videoSliderIndex === player.videoSliderTracks - 1) {
-					$nextVid.fadeOut();
-				} else {
-					$nextVid.fadeIn();
-				}
-				if (player.videoSliderIndex === 0) {
-					$prevVid.fadeOut();
-				} else {
-					$prevVid.fadeIn();
-				}
-
-				if (moveMe === true) {
-					player.sliderWidth = $('#' + player.id).width();
-					//console.log('mep-prev clicked, moving to pos: ', Math.ceil(player.sliderWidth * player.videoSliderIndex));
-					$('#' + player.id + '.mejs-container.mep-slider').find('.mejs-playlist ul li').css({'transform': 'translate3d(-' + Math.ceil(player.sliderWidth * player.videoSliderIndex) + 'px, -20px, 0) scale3d(0.75, 0.75, 1)'});
-				}
-			}).hide(); // initially hide prevVid button
-
-			$nextVid.click(function () {
-				var moveMe = true;
-
-				player.videoSliderIndex += 1;
-				if (player.videoSliderIndex > player.videoSliderTracks - 1) {
-					player.videoSliderIndex = player.videoSliderTracks - 1;
-					moveMe = false;
-				}
-
-				if (player.videoSliderIndex === player.videoSliderTracks - 1) {
-					$nextVid.fadeOut();
-				} else {
-					$nextVid.fadeIn();
-				}
-				if (player.videoSliderIndex === 0) {
-					$prevVid.fadeOut();
-				} else {
-					$prevVid.fadeIn();
-				}
-
-				if (moveMe === true) {
-					player.sliderWidth = $('#' + player.id).width();
-					//console.log('mep-next clicked, moving to pos: ', Math.ceil(player.sliderWidth * player.videoSliderIndex));
-					$('#' + player.id + '.mejs-container.mep-slider').find('.mejs-playlist ul li').css({'transform': 'translate3d(-' + Math.ceil(player.sliderWidth * player.videoSliderIndex) + 'px, -20px, 0) scale3d(0.75, 0.75, 1)'});
-				}
-			});
-
-			// play track from playlist when clicking it
-			layers.find('.mejs-playlist > ul li').click(function () {
-				// pause current track or play other one
-				if (!$(this).hasClass('current')) {
-					// clicked other track - play it
-					$(this).addClass('played');
-					player.playTrack($(this));
-				} else {
-					// clicked current track - play if paused and vice versa
-					if (!player.media.paused) {
-						// pause if playing
-						player.pause();
-					} else {
-						// play if paused
-						player.play();
-					}
-				}
-			});
-
-			// when current track ends - play the next one
-			media.addEventListener('ended', function () {
-				player.playNextTrack();
-			}, false);
-
-			// set play and paused class to container
-			media.addEventListener('playing',function () {
-				player.container.removeClass('mep-paused').addClass('mep-playing');
-
-				// hide playlist for videos
-				if ($(media).is('video')) {
-					t.togglePlaylistDisplay(player, layers, media, 'hide');
-				}
-
-			}, false);
-
-			/* mediaelement.js hides poster on "play" for all player types - not so great for audio */
-			media.addEventListener('play', function () {
-				if ($(player.media).is('audio')) {
-					layers.find('.mejs-poster').show();
-				}
-			}, false);
-
-			media.addEventListener('pause',function () {
-				player.container.removeClass('mep-playing').addClass('mep-paused');
-			}, false);
-
-		},
-		playNextTrack: function () {
-			var t = this, 
-			    nxt;
-			var tracks = t.layers.find('.mejs-playlist > ul > li');
-			var current = tracks.filter('.current');
-			var notplayed = tracks.not('.played');
-			if (notplayed.length < 1) {
-				current.removeClass('played').siblings().removeClass('played');
-				notplayed = tracks.not('.current');
-			}
-			if (t.options.shuffle) {
-				var random = Math.floor(Math.random() * notplayed.length);
-				nxt = notplayed.eq(random);
-			} else {
-				nxt = current.next();
-				if (nxt.length < 1 && t.options.loop) {
-					nxt = current.siblings().first();
-				}
-			}
-			if (nxt.length == 1) {
-				nxt.addClass('played');
-				t.playTrack(nxt);
-			}
-		},
-		playPrevTrack: function () {
-			var t = this,
-			    prev;
-			var tracks = t.layers.find('.mejs-playlist > ul > li');
-			var current = tracks.filter('.current');
-			var played = tracks.filter('.played').not('.current');
-			if (played.length < 1) {
-				current.removeClass('played');
-				played = tracks.not('.current');
-			}
-			if (t.options.shuffle) {
-				var random = Math.floor(Math.random()*played.length);
-				prev = played.eq(random);
-			} else {
-				prev = current.prev();
-				if (prev.length < 1 && t.options.loop) {
-					prev = current.siblings().last();
-				}
-			}
-			if (prev.length == 1) {
-				current.removeClass('played');
-				t.playTrack(prev);
-			}
-		},
-		changePoster: function (posterUrl) {
-			var t = this;
-			t.layers.find('.mejs-playlist').css('background-image', 'url("' + posterUrl + '")');
-			// also set actual poster
-			t.setPoster(posterUrl);
-			// make sure poster is visible (not the case if no poster attribute was set)
-			t.layers.find('.mejs-poster').show();
-		},
-		playTrack: function (track) {
-			var t = this;
-			t.pause();
-			t.setSrc(track.data('url'));
-			t.load();
-			t.changePoster(track.data('poster'));
-			t.play();
-			track.addClass('current').siblings().removeClass('current');
-		},
-		playTrackURL: function (url) {
-			var t = this;
-			var tracks = t.layers.find('.mejs-playlist > ul > li');
-			var track = tracks.filter('[data-url="' + url + '"]');
-			t.playTrack(track);
-		},
-		togglePlaylistDisplay: function (player, layers, media, showHide) {
-			var t = this;
-
-			if (!!showHide) {
-				player.options.playlist = showHide === 'show' ? true : false;
-			} else {
-				player.options.playlist = !player.options.playlist;
-			}
-			
-			$(media).trigger('mep-playlisttoggle', [player.options.playlist]);
-
-			// toggle playlist display
-			if (player.options.playlist) {
-				layers.children('.mejs-playlist').fadeIn();
-				t.playlistToggle.removeClass('mejs-show-playlist').addClass('mejs-hide-playlist');
-			} else {
-				layers.children('.mejs-playlist').fadeOut();
-				t.playlistToggle.removeClass('mejs-hide-playlist').addClass('mejs-show-playlist');
-			}
-		}
-	});
-
-})(mejs.$);
+      if (notplayed.length < 1) {
+        tracks.forEach(el => {
+          el.classList.remove('played')
+        })
+        notplayed = [...tracks].filter(el => !el.classList.contains('current'))
+      }
+      if (t.options.shuffle) {
+        const random = Math.floor(Math.random() * notplayed.length)
+        nxt = notplayed[random]
+      } else {
+        nxt = current.nextElementSibling
+        if (nxt.length === null && t.options.loop) {
+          nxt = tracks[0]
+        }
+      }
+      if (nxt) {
+        nxt.classList.add('played')
+        t.playTrack(nxt)
+      }
+    },
+    playPrevTrack () {
+      const t = this
+      let prev
+      const tracks = t.layers.querySelectorAll('.mejs__playlist > ul > li')
+      const current = t.layers.querySelector('.mejs__playlist > ul > li.current')
+      let played = [...tracks].filter(el => el.classList.contains('played') && !el.classList.contains('current'))
+      if (played.length < 1) {
+        current.classList.remove('played')
+        played = [...tracks].filter(el => !el.classList.contains('current'))
+      }
+      if (t.options.shuffle) {
+        const random = Math.floor(Math.random() * played.length)
+        prev = played[random]
+      } else {
+        prev = current.previousElementSibling
+        if (!prev && t.options.loop) {
+          prev = tracks[tracks.length - 1]
+        }
+      }
+      if (prev) {
+        current.classList.remove('played')
+        t.playTrack(prev)
+      }
+    },
+    changePoster (posterUrl) {
+      const t = this
+      setNodeAttributes(t.layers.querySelector('.mejs__playlist'), {
+        'background-image': `url("${posterUrl}")`
+      })
+      // also set actual poster
+      t.setPoster(posterUrl)
+      // make sure poster is visible (not the case if no poster attribute was set)
+      toggleDisplay(t.layers.querySelector('.mejs__poster'), true)
+    },
+    playTrack (track) {
+      const t = this
+      t.pause()
+      t.setSrc(track.getAttribute('data-url'))
+      t.load()
+      t.changePoster(track.getAttribute('data-poster'))
+      t.play()
+      const tracks = t.layers.querySelectorAll('.mejs__playlist > ul > li')
+      tracks.forEach(el => {
+        el.classList[el === track ? 'add' : 'remove']('current')
+      })
+    },
+    playTrackURL (url) {
+      const t = this
+      const tracks = t.layers.querySelectorAll('.mejs__playlist > ul > li')
+      const track = tracks.querySelector(`[data-url="${url}"]`)
+      t.playTrack(track)
+    },
+    togglePlaylistDisplay (player, layers, media, showHide) {
+      const t = this
+      if (showHide) {
+        player.options.playlist = showHide === 'show'
+      } else {
+        player.options.playlist = !player.options.playlist
+      }
+      media.dispatchEvent(new Event('mep-playlisttoggle', [player.options.playlist]))
+      // toggle playlist display
+      const isP = player.options.playlist
+      toggleFade(layers.querySelector('.mejs__playlist'), isP)
+      t.playlistToggle.classList.add(isP ? 'mejs__hide-playlist' : 'mejs__show-playlist')
+      t.playlistToggle.classList.remove(isP ? 'mejs__show-playlist' : 'mejs__hide-playlist')
+    }
+  })
+})()
